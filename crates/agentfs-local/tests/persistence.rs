@@ -17,6 +17,20 @@ async fn objects_are_verified_and_live_readers_prevent_eviction() {
         )
         .await
         .unwrap();
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_TEMPORARY;
+        let stored = backend
+            .data_dir()
+            .join("objects")
+            .join(workspace.to_string())
+            .join(object.id.as_str());
+        assert_eq!(
+            std::fs::metadata(stored).unwrap().file_attributes() & FILE_ATTRIBUTE_TEMPORARY,
+            0
+        );
+    }
     assert!(!backend.evict(workspace, &object).await.unwrap());
     backend.confirm_remote(workspace, &object).await.unwrap();
     let mut stream = backend.open(workspace, &object).await.unwrap();

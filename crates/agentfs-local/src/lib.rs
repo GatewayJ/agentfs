@@ -160,13 +160,20 @@ fn publish_object(temporary: tempfile::TempPath, destination: &Path) -> std::io:
 #[allow(unsafe_code)]
 fn publish_object(temporary: tempfile::TempPath, destination: &Path) -> std::io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
-    use windows_sys::Win32::Storage::FileSystem::{MOVEFILE_WRITE_THROUGH, MoveFileExW};
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_ATTRIBUTE_NORMAL, MOVEFILE_WRITE_THROUGH, MoveFileExW, SetFileAttributesW,
+    };
     let source: Vec<u16> = temporary.as_os_str().encode_wide().chain(Some(0)).collect();
     let target: Vec<u16> = destination
         .as_os_str()
         .encode_wide()
         .chain(Some(0))
         .collect();
+    // SAFETY: The source is a valid, terminated UTF-16 path owned by this operation.
+    // Clear tempfile's temporary-file attribute before durable publication.
+    if unsafe { SetFileAttributesW(source.as_ptr(), FILE_ATTRIBUTE_NORMAL) } == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
     // SAFETY: Both paths are valid, terminated UTF-16 buffers alive for the call.
     // Omitting REPLACE_EXISTING preserves immutable object publication.
     if unsafe { MoveFileExW(source.as_ptr(), target.as_ptr(), MOVEFILE_WRITE_THROUGH) } == 0 {

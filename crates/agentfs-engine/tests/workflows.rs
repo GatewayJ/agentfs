@@ -1198,3 +1198,54 @@ async fn complete_local_cache_can_be_prefetched_while_remote_is_offline() {
     };
     assert!(status.complete);
 }
+
+#[tokio::test]
+async fn publication_failure_does_not_block_other_branches() {
+    let remote = Arc::new(MemoryRemote::default());
+    let harness = Harness::new(Some(remote.clone())).await;
+    let workspace = harness.workspace().await;
+    let (mut first, mut first_fs) = harness.session(workspace.id, "first", None).await;
+    let (mut second, mut second_fs) = harness.session(workspace.id, "second", None).await;
+    if first.branch > second.branch {
+        std::mem::swap(&mut first, &mut second);
+        std::mem::swap(&mut first_fs, &mut second_fs);
+    }
+    harness.sync(workspace.id, SyncDirection::Push).await;
+    let key = RefKey::Branch {
+        workspace: workspace.id,
+        branch: first.branch,
+    };
+    let reference = remote.get(&key).await.unwrap().unwrap();
+    let mut changed: BranchRef = decode(&reference.bytes).unwrap();
+    changed.owner = LocationId::new();
+    changed.authority_epoch += 1;
+    assert!(matches!(
+        remote
+            .compare_exchange(RefUpdate {
+                key,
+                expected_version: Some(reference.version),
+                bytes: encode(&changed).unwrap().into(),
+            })
+            .await
+            .unwrap(),
+        CasOutcome::Applied { .. }
+    ));
+    harness.write_new(&first_fs, "file", b"first").await;
+    harness.commit(first.branch).await;
+    harness.clock.advance(1000);
+    harness.write_new(&second_fs, "file", b"second").await;
+    harness.commit(second.branch).await;
+    let error = harness.engine.sync_pending().await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::StaleAuthority);
+    let remaining = harness.local.sync_jobs(workspace.id).await.unwrap();
+    assert!(
+        remaining
+            .iter()
+            .any(|job| job.reference.branch == first.branch)
+    );
+    assert!(
+        remaining
+            .iter()
+            .all(|job| job.reference.branch != second.branch)
+    );
+}

@@ -13,10 +13,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: rust-${{ runner.os }}-${{ runner.arch }}-
       - name: Install FUSE
         run: sudo apt-get update && sudo apt-get install -y fuse3
       - name: Verify workspace
@@ -27,6 +35,10 @@ jobs:
         run: |
           make -j "$(nproc)" build
           python3 tests/cli_smoke.py
+      - name: Verify container validation
+        run: |
+          docker pull debian:bookworm-slim
+          make -j "$(nproc)" test CARGO_FLAGS='-p agentfs-platform --test validation -- --ignored --nocapture'
       - name: Start isolated RustFS
         run: |
           docker run -d --name agentfs-test-s3 -p 127.0.0.1:9000:9000 -e RUSTFS_ACCESS_KEY=AGENTFSTESTLOCAL -e RUSTFS_SECRET_KEY=agentfs-local-integration-secret-2026 rustfs/rustfs@sha256:60f4f2f41ce95216f8cac676e69f9d90c0bfec458a3bc7fd7fb9b7c2452ac57a /data
@@ -51,10 +63,18 @@ jobs:
     runs-on: macos-14
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: rust-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify workspace
         run: make -j "$(sysctl -n hw.ncpu)" verify
       - name: Check macFUSE callbacks
@@ -67,10 +87,18 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: rust-${{ runner.os }}-${{ runner.arch }}-
       - name: Install WinFsp SDK and driver
         shell: pwsh
         run: |

@@ -77,13 +77,12 @@ impl Driver {
     }
 
     pub async fn status(&self, binding: &MountBinding) -> Result<NativeMountState> {
-        if let Some((current, session)) = self.mounts.lock().get(&binding.id) {
-            if current.generation == binding.generation
-                && current.path == binding.path
-                && !session.guard.is_finished()
-            {
-                return Ok(NativeMountState::Mounted);
-            }
+        if let Some((current, session)) = self.mounts.lock().get(&binding.id)
+            && current.generation == binding.generation
+            && current.path == binding.path
+            && !session.guard.is_finished()
+        {
+            return Ok(NativeMountState::Mounted);
         }
         let path = binding.path.clone();
         tokio::task::spawn_blocking(move || {

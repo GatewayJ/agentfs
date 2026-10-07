@@ -26,6 +26,16 @@ The WinFsp wrapper's null volume-flush regression is tested separately on Window
 make -j $env:NUMBER_OF_PROCESSORS test CARGO_FLAGS='--manifest-path vendor/winfsp_wrs/Cargo.toml --lib'
 ```
 
+## Container validation
+
+With Docker and `debian:bookworm-slim` available:
+
+```sh
+make -j "$(getconf _NPROCESSORS_ONLN)" test CARGO_FLAGS='-p agentfs-platform --test validation -- --ignored --nocapture'
+```
+
+The test runs as an unprivileged container user, reads privately permissioned candidate content, verifies the input mount is read-only, and checks output and time limits. Candidate materialization grants read access to the validation user while retaining executable-file behavior; container mount permissions prevent modification.
+
 ## S3 / RustFS
 
 Use a disposable endpoint and credentials permitted to create the `agentfs-integration` bucket. Test objects use unique prefixes. Do not point these tests at production storage.
@@ -42,4 +52,4 @@ Backend tests exercise competing conditional reference creation, stale condition
 
 ## Execution evidence
 
-During repository creation, macOS workspace tests and Clippy, Windows cross-compilation of the native adapter, macFUSE callback compilation, real Linux FUSE mounting in an isolated container, and real RustFS backend tests passed. CLI/stdio tests passed on macOS. GitHub Actions defines native Linux/Windows runs and macOS checks; its results are the evidence for those hosted environments. A macOS native mount run requires an enabled local macFUSE installation.
+During repository creation, macOS workspace tests and Clippy, Windows cross-compilation of the native adapter, macFUSE callback compilation, real Linux FUSE mounting in an isolated container, and real RustFS backend tests passed. CLI/stdio, two-daemon S3 replication/ownership, and real container validation tests passed on macOS. GitHub Actions defines native Linux/Windows runs and macOS checks; its results are the evidence for those hosted environments. A macOS native mount run requires an enabled local macFUSE installation.

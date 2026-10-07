@@ -171,12 +171,15 @@ impl Engine {
         if !self.remote_configured {
             return Ok(());
         }
+        let mut first_error = None;
         for workspace in self.runtime.state.workspaces().await? {
-            if !self.runtime.state.sync_jobs(workspace.id).await?.is_empty() {
-                self.publisher.drain(workspace.id, None).await?;
+            if !self.runtime.state.sync_jobs(workspace.id).await?.is_empty()
+                && let Err(error) = self.publisher.drain(workspace.id, None).await
+            {
+                first_error.get_or_insert(error);
             }
         }
-        Ok(())
+        first_error.map_or(Ok(()), Err)
     }
 
     pub async fn flush_local(&self) -> Result<()> {

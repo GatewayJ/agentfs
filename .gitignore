@@ -5,3 +5,6 @@
 *.db-shm
 *.db-wal
 .DS_Store
+
+/vendor/winfsp_wrs/target/
+/vendor/winfsp_wrs/Cargo.lock

@@ -54,13 +54,15 @@ impl ValidationRunner for ContainerValidation {
         }
         let temporary = tempfile::tempdir()?;
         let directory = Dir::open_ambient_dir(temporary.path(), ambient_authority())?;
-        write_tree(
-            &directory,
-            request.workspace,
-            &request.tree,
-            request.content,
-        )
-        .await?;
+        let mut tree = request.tree;
+        for inode in tree.values_mut() {
+            inode.mode = if inode.kind == FileKind::Directory {
+                0o755
+            } else {
+                0o644 | if inode.mode & 0o100 != 0 { 0o111 } else { 0 }
+            };
+        }
+        write_tree(&directory, request.workspace, &tree, request.content).await?;
         let source = temporary
             .path()
             .to_str()
@@ -93,8 +95,9 @@ impl ValidationRunner for ContainerValidation {
             .arg(format!(
                 "type=bind,source={source},target=/workspace,readonly"
             ))
-            .arg(&config.image)
+            .arg("--entrypoint")
             .arg(&config.program)
+            .arg(&config.image)
             .args(&config.arguments)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

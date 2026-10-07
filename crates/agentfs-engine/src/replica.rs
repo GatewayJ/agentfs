@@ -341,8 +341,12 @@ impl ReplicaPublisher for ReplicaService {
     async fn drain(&self, workspace: WorkspaceId, branch: Option<BranchId>) -> Result<()> {
         let _publication = self.publication.lock().await;
         self.publish_workspace(workspace).await?;
+        let mut blocked = std::collections::BTreeSet::new();
+        let mut first_error = None;
         for mut job in self.runtime.state.sync_jobs(workspace).await? {
-            if branch.is_some_and(|branch| branch != job.reference.branch) {
+            if branch.is_some_and(|branch| branch != job.reference.branch)
+                || blocked.contains(&job.reference.branch)
+            {
                 continue;
             }
             if let Err(error) = self.publish_job(&job).await {
@@ -375,10 +379,11 @@ impl ReplicaPublisher for ReplicaService {
                 } else {
                     self.runtime.state.commit(commit).await?;
                 }
-                return Err(error);
+                blocked.insert(job.reference.branch);
+                first_error.get_or_insert(error);
             }
         }
-        Ok(())
+        first_error.map_or(Ok(()), Err)
     }
 
     async fn build_job(
