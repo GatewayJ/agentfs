@@ -229,7 +229,7 @@ impl DirectoryAccess for HostDirectories {
                             rustix::fs::RenameFlags::NOREPLACE,
                         )
                         .map_err(std::io::Error::from)?;
-                        parent.try_clone()?.into_std_file().sync_all()?;
+                        parent.open(".")?.sync_all()?;
                     }
                     #[cfg(windows)]
                     {
@@ -324,6 +324,8 @@ pub(crate) async fn write_tree(
                 path.as_str().trim_start_matches('/')
             });
             let child = directory.open_dir(relative)?;
+            #[cfg(unix)]
+            let durable = child.open(".")?;
             directory.set_times(
                 relative,
                 None,
@@ -336,7 +338,7 @@ pub(crate) async fn write_tree(
                 use cap_std::fs::PermissionsExt;
                 directory
                     .set_permissions(relative, cap_std::fs::Permissions::from_mode(inode.mode))?;
-                child.into_std_file().sync_all()?;
+                durable.sync_all()?;
             }
             #[cfg(windows)]
             drop(child);

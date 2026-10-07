@@ -52,4 +52,14 @@ Backend tests exercise competing conditional reference creation, stale condition
 
 ## Execution evidence
 
-During repository creation, macOS workspace tests and Clippy, Windows cross-compilation of the native adapter, macFUSE callback compilation, real Linux FUSE mounting in an isolated container, and real RustFS backend tests passed. CLI/stdio, two-daemon S3 replication/ownership, and real container validation tests passed on macOS. GitHub Actions defines native Linux/Windows runs and macOS checks; its results are the evidence for those hosted environments. A macOS native mount run requires an enabled local macFUSE installation.
+| Check | Verified environment |
+| --- | --- |
+| Workspace tests and Clippy | macOS, Linux, Windows |
+| Native mounted file operations and revision access | Linux as root and as an ordinary user; Windows with WinFsp 2.1 |
+| CLI, stdio MCP, directory metadata, restart recovery | macOS, Linux, Windows |
+| Conditional S3 writes and multipart content | Isolated RustFS instance |
+| Two-daemon S3 replication and ownership transfer | macOS and Linux |
+| Container validation permissions, output limits, timeout | Docker on macOS |
+| macFUSE callback compilation | macOS |
+
+[GitHub Actions](https://github.com/GatewayJ/agentfs/actions) runs the checked-in test matrix for each commit, including container validation on Linux. Native macOS mounting requires an installed and enabled macFUSE driver; that kernel mount test has not been executed in the development environment.
