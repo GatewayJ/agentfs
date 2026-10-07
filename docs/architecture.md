@@ -1,5 +1,7 @@
 # Architecture
 
+[English](architecture.md) | [简体中文](architecture.zh-CN.md)
+
 `agentfsd` is the composition root. It creates concrete adapters, injects them into the engine, and serves the resulting `Services` facade. The engine imports model and port crates; persistence, native drivers, S3, and protocol dependencies stay in adapters.
 
 | Crate | Responsibility |
@@ -42,6 +44,8 @@ Administrator-configured container validations export candidate content into a p
 
 ## Authentication boundary
 
-Bearer credentials select a principal before creating the MCP service. Each principal has a separate HTTP session manager. Tool arguments cannot override the principal. Host and Origin allowlists and an 8 MiB request limit apply at the HTTP boundary. The daemon binds to loopback. Remote access requires an administrator-managed authenticated TLS proxy preserving the accepted Host value.
+Bearer credentials select a principal before creating the MCP service. Each credential has a separate HTTP session manager. Tool arguments cannot override the principal. Host and Origin allowlists and an 8 MiB request limit apply at the HTTP boundary. The daemon binds to loopback. Remote access requires an administrator-managed authenticated TLS proxy preserving the accepted Host value.
 
 Workspace grants authorize application actions. Native filesystem access is tied to the daemon's OS identity. Keep configuration, credentials, state, mount roots, and exchange roots restricted to that identity; on Windows configure their NTFS permissions accordingly. S3 credentials and administrators are trusted storage writers.
+
+See [configuration and S3](configuration.md), [CLI usage](cli.md), and [MCP parameters and capabilities](mcp.md).

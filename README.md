@@ -1,5 +1,7 @@
 # AgentFS
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 AgentFS gives agents durable workspaces, isolated session branches, immutable revisions, and native filesystem paths. A long-running Rust daemon owns local state and mounts. Concurrent MCP clients and the CLI share its authenticated API.
 
 The implementation includes:
@@ -47,7 +49,7 @@ export AGENTFS_TOKEN_FILE="$HOME/.local/share/agentfs/token"
 
 To connect an MCP client through stdio, configure the executable as `agentfs`, arguments as `["mcp"]`, and set `AGENTFS_TOKEN_FILE`. `AGENTFS_ENDPOINT` selects another daemon endpoint. The stdio process forwards requests to the running daemon.
 
-Use `agentfs tools` as the source for JSON input schemas. Mutation tools accept `{ "request_id": "stable-id", "request": { ... } }` over MCP. The CLI's `--request-id` option builds that envelope. Query tools receive their arguments directly. `--json -` reads JSON from standard input. The CLI exits with 0 for successful tools, 2 for a tool error, and 1 for transport or input errors.
+Use `agentfs tools` as the source for JSON input schemas. Command tools accept `{ "request_id": "stable-id", "request": { ... } }` over MCP. The CLI's `--request-id` option builds that envelope. Query tools and `operation_cancel` receive their arguments directly. `--json -` reads JSON from standard input. The CLI exits with 0 for successful tool responses, 2 for a tool error, and 1 for transport or input errors; command-line parsing errors also use 2. See [CLI usage](docs/cli.md) for executable examples and [MCP parameters and capabilities](docs/mcp.md) for the complete tool reference.
 
 ## Work with sessions
 
@@ -77,6 +79,8 @@ To enable replication, set `remote` in the generated configuration:
 
 Supply credentials using the AWS environment/provider configuration supported by `object_store`. The bucket must already exist and support conditional object writes, conditional multipart completion, and strongly consistent reads. Restrict credentials to the selected bucket/prefix. Local development endpoints may explicitly enable `allow_http`.
 
+See [configuration and S3](docs/configuration.md) for every field, AWS S3/RustFS examples, supported credential sources, environment precedence, and multi-machine setup.
+
 The cache defaults to a 2 GiB limit and a 1.5 GiB collection target. Current branch roots, pending publications, merge candidates, and explicit pins remain protected. Historical file content confirmed remotely can be evicted. `cache_status.offline_ready` requires a complete pinned selection. Protected data can exceed the cache target; the workspace capacity limits still apply.
 
 ## Validation and scope
@@ -87,4 +91,4 @@ File operations cover regular files and directories, atomic branch append, renam
 
 The advertised capability response describes the supported behavior. Symbolic links, hard links, extended attributes, memory-mapped writes, advisory locking, automatic text conflict resolution, physical remote garbage collection, and global session-location arbitration are outside the implemented interface. Unlinking an open file or replacing an open destination returns a busy error. Concurrent changes to the same path become explicit merge conflicts. Mounts are owned by the daemon's OS identity; workspace access grants govern MCP requests.
 
-See [architecture](docs/architecture.md), [operations and recovery](docs/operations.md), and [validation](docs/validation.md). AgentFS is licensed under Apache-2.0; the vendored WinFsp Rust wrapper retains its MIT license.
+See the [documentation index](docs/README.md), [architecture](docs/architecture.md), [operations and recovery](docs/operations.md), and [validation](docs/validation.md). AgentFS is licensed under Apache-2.0; the vendored WinFsp Rust wrapper retains its MIT license.

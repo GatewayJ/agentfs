@@ -1,8 +1,10 @@
 # Operations and recovery
 
+[English](operations.md) | [简体中文](operations.zh-CN.md)
+
 ## Request identity and receipts
 
-Reuse a `request_id` for the same tool and identical arguments. Identity is scoped to the authenticated principal and persists across restarts. A conflicting reuse returns `REQUEST_ID_CONFLICT`. Requests reserve their operation before effects. `operation_by_request` and `operation_get` recover the original receipt.
+For command tools, reuse a `request_id` for the same tool and identical arguments. Identity is scoped to the authenticated principal and persists across restarts. A conflicting reuse returns `REQUEST_ID_CONFLICT`. Commands reserve their operation before executing the recorded workflow. `operation_by_request` and `operation_get` recover the original receipt. `operation_cancel` takes an existing operation ID directly; see the [MCP parameter reference](mcp.md).
 
 Read these receipt fields independently:
 
@@ -59,3 +61,5 @@ Example configuration entry under `validation`:
 ```
 
 Preload the selected image; validation uses `--pull=never`. Use an immutable image digest for controlled deployments. The candidate is mounted at `/workspace` read-only; scratch space is `/tmp`.
+
+See [configuration and S3](configuration.md) for remote credentials and [CLI usage](cli.md) for executable examples.
