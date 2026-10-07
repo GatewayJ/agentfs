@@ -58,41 +58,48 @@ async fn run(arguments: Arguments) -> Result<bool> {
         })?,
     };
     let client = Client::connect(&arguments.endpoint, token).await?;
-    match arguments.command {
-        Command::Tools => println!("{}", serde_json::to_string_pretty(&client.tools().await?)?),
-        Command::Call {
-            tool,
-            json: input,
-            request_id,
-        } => {
-            let input = if input == "-" {
-                let mut input = String::new();
-                std::io::stdin()
-                    .take(8 * 1024 * 1024 + 1)
-                    .read_to_string(&mut input)?;
-                input
-            } else {
-                input
-            };
-            if input.len() > 8 * 1024 * 1024 {
-                return Err(Error::invalid("tool arguments exceed 8 MiB"));
+    let result = async {
+        match arguments.command {
+            Command::Tools => println!("{}", serde_json::to_string_pretty(&client.tools().await?)?),
+            Command::Call {
+                tool,
+                json: input,
+                request_id,
+            } => {
+                let input = if input == "-" {
+                    let mut input = String::new();
+                    std::io::stdin()
+                        .take(8 * 1024 * 1024 + 1)
+                        .read_to_string(&mut input)?;
+                    input
+                } else {
+                    input
+                };
+                if input.len() > 8 * 1024 * 1024 {
+                    return Err(Error::invalid("tool arguments exceed 8 MiB"));
+                }
+                let mut arguments: Value = serde_json::from_str(&input)
+                    .map_err(|error| Error::invalid(error.to_string()))?;
+                if let Some(request_id) = request_id {
+                    arguments = json!({"request_id": request_id, "request": arguments});
+                }
+                let result = client.call(tool, arguments).await?;
+                let success = result.is_error != Some(true);
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&result.structured_content.unwrap_or_else(
+                        || json!({"content": result.content, "is_error": result.is_error})
+                    ))?
+                );
+                return Ok(success);
             }
-            let mut arguments: Value =
-                serde_json::from_str(&input).map_err(|error| Error::invalid(error.to_string()))?;
-            if let Some(request_id) = request_id {
-                arguments = json!({"request_id": request_id, "request": arguments});
-            }
-            let result = client.call(tool, arguments).await?;
-            let success = result.is_error != Some(true);
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&result.structured_content.unwrap_or_else(
-                    || json!({"content": result.content, "is_error": result.is_error})
-                ))?
-            );
-            return Ok(success);
+            Command::Mcp => stdio_proxy(client.clone()).await?,
         }
-        Command::Mcp => stdio_proxy(client).await?,
+        Ok(true)
     }
-    Ok(true)
+    .await;
+    if let Err(error) = client.close().await {
+        tracing::warn!(%error, "MCP connection cleanup failed");
+    }
+    result
 }

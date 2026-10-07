@@ -161,6 +161,8 @@ async fn concurrent_mcp_clients_share_operations_and_enforce_principals() {
         .await
         .unwrap();
     assert_eq!(forged.is_error, Some(true));
+    owner.close().await.unwrap();
+    visitor.close().await.unwrap();
     cancellation.cancel();
     server.abort();
 }

@@ -28,6 +28,16 @@ impl Client {
         let service = ().serve(transport).await.map_err(remote_error)?;
         Ok(Arc::new(Self { service }))
     }
+    pub async fn close(self: Arc<Self>) -> Result<()> {
+        let mut client = Arc::try_unwrap(self)
+            .map_err(|_| Error::new(ErrorCode::Busy, "client still has active owners"))?;
+        client
+            .service
+            .close_with_timeout(std::time::Duration::from_secs(5))
+            .await
+            .map_err(remote_error)?;
+        Ok(())
+    }
     pub async fn tools(&self) -> Result<ListToolsResult> {
         self.service.list_tools(None).await.map_err(remote_error)
     }
