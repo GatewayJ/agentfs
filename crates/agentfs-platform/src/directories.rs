@@ -214,9 +214,11 @@ impl DirectoryAccess for HostDirectories {
             runtime.block_on(async move {
                 let temporary = format!(".agentfs-export-{}", uuid::Uuid::new_v4());
                 parent.create_dir(&temporary)?;
-                let staging = parent.open_dir_nofollow(&temporary)?;
                 let result = async {
+                    let staging = parent.open_dir_nofollow(&temporary)?;
                     write_tree(&staging, workspace, &tree, content).await?;
+                    // Windows directory handles prevent rename until released.
+                    drop(staging);
                     #[cfg(unix)]
                     {
                         rustix::fs::renameat_with(
