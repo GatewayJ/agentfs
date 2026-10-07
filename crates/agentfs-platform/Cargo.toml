@@ -1,0 +1,46 @@
+[package]
+name = "agentfs-platform"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+agentfs-model.workspace = true
+agentfs-ports.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+parking_lot.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+cap-std = "4.0.3"
+cap-fs-ext = "4.0.3"
+tempfile.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+libc.workspace = true
+uuid.workspace = true
+
+[features]
+macos-mount = ["dep:fuser"]
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1.1", features = ["fs", "process"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+fuser = "0.18.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+fuser = { version = "0.18.0", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+winfsp_wrs = "0.4.1"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_Storage_FileSystem"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+agentfs-engine.workspace = true
+agentfs-local.workspace = true

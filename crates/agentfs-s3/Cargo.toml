@@ -1,0 +1,29 @@
+[package]
+name = "agentfs-s3"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+agentfs-model.workspace = true
+agentfs-ports.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+futures.workspace = true
+object_store.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+sha2.workspace = true
+tokio-util.workspace = true
+reqwest = { version = "0.13", features = ["rustls", "stream"], default-features = false }
+quick-xml = "0.39"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+uuid.workspace = true

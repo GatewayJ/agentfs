@@ -1,0 +1,98 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install FUSE
+        run: sudo apt-get update && sudo apt-get install -y fuse3
+      - name: Verify workspace
+        run: make -j "$(nproc)" verify
+      - name: Verify native mount
+        run: make -j "$(nproc)" test CARGO_FLAGS='-p agentfs-platform --test native_mount -- --ignored --nocapture'
+      - name: Verify CLI and stdio MCP
+        run: |
+          make -j "$(nproc)" build
+          python3 tests/cli_smoke.py
+      - name: Start isolated RustFS
+        run: |
+          docker run -d --name agentfs-test-s3 -p 127.0.0.1:9000:9000 -e RUSTFS_ACCESS_KEY=AGENTFSTESTLOCAL -e RUSTFS_SECRET_KEY=agentfs-local-integration-secret-2026 rustfs/rustfs@sha256:60f4f2f41ce95216f8cac676e69f9d90c0bfec458a3bc7fd7fb9b7c2452ac57a /data
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:9000/health; then exit 0; fi
+            sleep 1
+          done
+          docker logs agentfs-test-s3
+          exit 1
+      - name: Verify S3 conditional writes and multipart objects
+        env:
+          AWS_ACCESS_KEY_ID: AGENTFSTESTLOCAL
+          AWS_SECRET_ACCESS_KEY: agentfs-local-integration-secret-2026
+          AGENTFS_TEST_S3_ENDPOINT: http://127.0.0.1:9000
+        run: |
+          make -j "$(nproc)" test CARGO_FLAGS='-p agentfs-s3 -- --ignored --nocapture'
+          python3 tests/replica_smoke.py
+      - name: Stop isolated RustFS
+        if: always()
+        run: docker rm -f agentfs-test-s3 || true
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Verify workspace
+        run: make -j "$(sysctl -n hw.ncpu)" verify
+      - name: Check macFUSE callbacks
+        run: make -j "$(sysctl -n hw.ncpu)" check CARGO_FLAGS='-p agentfs-platform --features macos-mount,fuser/macos-no-mount'
+      - name: Verify CLI and stdio MCP
+        run: |
+          make -j "$(sysctl -n hw.ncpu)" build
+          python3 tests/cli_smoke.py
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install WinFsp SDK and driver
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'winfsp.msi'
+          Invoke-WebRequest 'https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi' -OutFile $installer
+          if ((Get-FileHash $installer -Algorithm SHA256).Hash -ne '073A70E00F77423E34BED98B86E600DEF93393BA5822204FAC57A29324DB9F7A') { throw 'WinFsp checksum mismatch' }
+          $process = Start-Process msiexec.exe -ArgumentList @('/i', $installer, '/qn', 'ADDLOCAL=ALL', '/norestart') -Wait -PassThru
+          if ($process.ExitCode -notin @(0, 3010)) { throw "WinFsp installation failed: $($process.ExitCode)" }
+          "${env:ProgramFiles(x86)}\WinFsp\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          if (-not (Get-Command make -ErrorAction SilentlyContinue)) { choco install make --yes --no-progress }
+      - name: Verify workspace
+        shell: pwsh
+        run: make -j $env:NUMBER_OF_PROCESSORS verify
+      - name: Verify WinFsp volume flush regression
+        shell: pwsh
+        run: make -j $env:NUMBER_OF_PROCESSORS test CARGO_FLAGS='--manifest-path vendor/winfsp_wrs/Cargo.toml --lib'
+      - name: Verify native mount
+        shell: pwsh
+        run: make -j $env:NUMBER_OF_PROCESSORS test CARGO_FLAGS='-p agentfs-platform --test native_mount -- --ignored --nocapture'
+      - name: Verify CLI and stdio MCP
+        shell: pwsh
+        run: |
+          make -j $env:NUMBER_OF_PROCESSORS build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/cli_smoke.py

@@ -1,0 +1,28 @@
+[package]
+name = "agentfs-local"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+agentfs-model.workspace = true
+agentfs-ports.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+parking_lot.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+fs4 = "1.1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
+
+[lints]
+workspace = true
